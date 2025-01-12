@@ -1,5 +1,6 @@
 const axios = require('axios')
-const captainModel = require('../models/captain.model')
+const captainModel = require('../models/captain.model');
+const res = require('express/lib/response');
 
 module.exports.getAddressCoordinate = async (address) => {
     const apiKey = process.env.POSITION_STACK_API;
@@ -87,11 +88,35 @@ function formatDuration(seconds) {
 
 
 module.exports.getAutoCompleteSuggestions = async(input)=>{
+    if(!input){
+        throw new Error('query is required')
+    }
 
+    const apiKey = process.env.POSITION_STACK_API
+    const url = `http://api.positionstack.com/v1/forward?access_key=${apiKey}&query=${encodeURIComponent(address)}`;
+
+    try{
+        const response =await axios.get(url)
+        if(response.data){
+            return response.data.predictions.map(prediction => prediction.description).filter(value => value)
+        }else{
+            throw new Error('Unable to fetch suggestions')
+        }
+    }catch(error){
+        console.error(error)
+    }
 }
 
 
 
 module.exports.getCaptainsRadius = async(latitude,longitude,radius)=>{
-    
+    const captains = await captainModel.find({
+        location: {
+            $geoWithin: {
+                $centerSphere: [ [ latitude, longitude ], radius / 6371 ]
+            }
+        }
+    });
+
+    return captains;
 }
